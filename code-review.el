@@ -156,7 +156,8 @@ OUTDATED."
    ("s m" "Milestone" code-review-set-milestone)
    ("s l" "Labels" code-review-set-label)
    ("s t" "Title" code-review-set-title)
-   ("s d" "Description" code-review-set-description)]
+   ("s d" "Description" code-review-set-description)
+   ("s v" "Toggle Viewed" code-review-toggle-file-viewed)]
   ["Buffer"
    ("G" "Full reload" code-review-reload)
    ("q" "Quit" transient-quit-one)])
@@ -168,6 +169,7 @@ OUTDATED."
     (define-key map (kbd "RET") 'code-review-comment-add-or-edit)
     (define-key map (kbd "C-c RET") 'code-review-submit-single-diff-comment-at-point)
     (define-key map (kbd "C-c C-s") 'code-review-comment-code-suggestion)
+    (define-key map (kbd "v") 'code-review-toggle-file-viewed)
     (define-key map (kbd "G") 'code-review-reload)
     (set-keymap-parent map magit-section-mode-map)
     map))

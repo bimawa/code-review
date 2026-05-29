@@ -1845,5 +1845,68 @@ If you want to provide a MSG for the end of the process."
       (code-review-db-delete-raw-comment (oref value internalId))
       (code-review--build-buffer))))
 
+;;;
+;;;; * File viewed state overlays
+;;;
+
+(defvar code-review-section--viewed-files nil
+  "Alist of (path . viewed-p) tracking files marked as viewed.")
+
+(defun code-review--viewed-overlay-for (path)
+  "Find existing viewed overlay for PATH or nil."
+  (cl-find-if
+   (lambda (ov)
+     (string= (overlay-get ov 'cr-path) path))
+   (overlays-in (point-min) (point-max))))
+
+(defun code-review--remove-viewed-overlay (path)
+  "Remove viewed overlay for PATH."
+  (when-let (ov (code-review--viewed-overlay-for path))
+    (delete-overlay ov)
+    (let ((pair (assoc path code-review-section--viewed-files)))
+      (when pair (setcdr pair nil)))))
+
+(defun code-review--add-viewed-overlay (path)
+  "Add a viewed CHECK MARK overlay before the file heading for PATH."
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward
+            (concat "^[ \t]*\\(modified\\|added\\|deleted\\|renamed\\)"
+                    "[ \t]+" (regexp-quote path) "$")
+            nil t)
+      (let ((start (match-beginning 0)))
+        (unless (code-review--viewed-overlay-for path)
+          (let ((ov (make-overlay start (1+ start)))
+                (pair (assoc path code-review-section--viewed-files)))
+            (overlay-put ov 'cr-path path)
+            (overlay-put ov 'evaporate t)
+            (overlay-put ov 'before-string
+                         (propertize " \u2713 " 'face '(:foreground "green" :weight bold)))
+            (if pair
+                (setcdr pair t)
+              (push (cons path t) code-review-section--viewed-files))))))))
+
+;;;###autoload
+(defun code-review-section-fetch-viewed-files (&rest _)
+  "Fetch viewed file state from GitHub and add check-mark overlays.
+Safe to call from `code-review-mode-hook' — errors are caught and logged."
+  (condition-case err
+      (when-let* ((pr (ignore-errors (code-review-db-get-pullreq)))
+                  ((code-review-github-repo-p pr)))
+        (code-review-fetch-viewed-files
+         pr
+         (lambda (files)
+           (when files
+             (setq code-review-section--viewed-files files)
+             (with-current-buffer code-review-buffer-name
+               (dolist (pair files)
+                 (when (cdr pair)
+                   (code-review--add-viewed-overlay (car pair)))))))))
+    (error
+     (code-review-utils--log "code-review-section-fetch-viewed-files"
+                            (format "Error: %S" err)))))
+
+(add-hook 'code-review-mode-hook #'code-review-section-fetch-viewed-files)
+
 (provide 'code-review-section)
 ;;; code-review-section.el ends here

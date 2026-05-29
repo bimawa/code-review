@@ -540,5 +540,19 @@ Expect the same output as `git diff --no-prefix`"
            t)))
      labels)))
 
+;;;###autoload
+(defun code-review-utils--file-path-at-point ()
+  "Get file path from the magit file section at point.
+Returns nil if point is not on a file section."
+  (when-let* ((section (magit-current-section))
+              (file-section
+               (if (eq (oref section type) 'file) section
+                 (cl-loop for p = (oref section parent) then (oref p parent)
+                          while p
+                          when (eq (oref p type) 'file) return p)))
+              (value (oref file-section value)))
+    (if (stringp value) value
+      (car-safe value))))
+
 (provide 'code-review-utils)
 ;;; code-review-utils.el ends here

@@ -108,5 +108,14 @@
 (cl-defgeneric code-review-new-code-comment (obj local-comment callback)
   "Create a new diff comment for OBJ given a LOCAL-COMMENT and call CALLBACK.")
 
+(cl-defgeneric code-review-mark-file-viewed (obj path callback)
+  "Mark file PATH as viewed for the PR in OBJ and call CALLBACK afterward.")
+
+(cl-defgeneric code-review-unmark-file-viewed (obj path callback)
+  "Unmark file PATH as viewed for the PR in OBJ and call CALLBACK afterward.")
+
+(cl-defgeneric code-review-fetch-viewed-files (obj callback)
+  "Fetch viewerViewedState for all files in PR OBJ and call CALLBACK with alist of (path . viewed-p).")
+
 (provide 'code-review-interfaces)
 ;;; code-review-interfaces.el ends here

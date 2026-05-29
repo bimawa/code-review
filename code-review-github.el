@@ -929,5 +929,76 @@ Return the blob URL if BLOB? is provided."
              :callback callback
              :errorback #'code-review-github-errback))
 
+;;; File viewed state (markFileAsViewed / unmarkFileAsViewed)
+
+(cl-defmethod code-review-mark-file-viewed ((github code-review-github-repo) path callback)
+  "Mark file PATH as viewed for GITHUB PR and call CALLBACK."
+  (let ((pr-id (a-get (oref github raw-infos) 'id))
+        (query "mutation($input: MarkFileAsViewedInput!) {
+  markFileAsViewed(input: $input) {
+    pullRequest { id }
+  }
+}"))
+    (ghub-graphql query
+                  `((input . ((pullRequestId . ,pr-id)
+                              (path . ,path))))
+                  :auth code-review-auth-login-marker
+                  :host code-review-github-graphql-host
+                  :callback (lambda (&rest _) (funcall callback))
+                  :errorback #'code-review-github-errback)))
+
+(cl-defmethod code-review-unmark-file-viewed ((github code-review-github-repo) path callback)
+  "Unmark file PATH as viewed for GITHUB PR and call CALLBACK."
+  (let ((pr-id (a-get (oref github raw-infos) 'id))
+        (query "mutation($input: UnmarkFileAsViewedInput!) {
+  unmarkFileAsViewed(input: $input) {
+    pullRequest { id }
+  }
+}"))
+    (ghub-graphql query
+                  `((input . ((pullRequestId . ,pr-id)
+                              (path . ,path))))
+                  :auth code-review-auth-login-marker
+                  :host code-review-github-graphql-host
+                  :callback (lambda (&rest _) (funcall callback))
+                  :errorback #'code-review-github-errback)))
+
+(cl-defmethod code-review-fetch-viewed-files ((github code-review-github-repo) callback)
+  "Fetch viewerViewedState for all files in GITHUB PR and call CALLBACK.
+CALLBACK receives an alist of ((path . viewed-p) ...)."
+  (let* ((owner (oref github owner))
+         (repo (oref github repo))
+         (num (if (numberp (oref github number))
+                  (oref github number)
+                (string-to-number (oref github number))))
+         (query "query($owner: String!, $name: String!, $pr: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $pr) {
+      files(first: 100) {
+        nodes {
+          path
+          viewerViewedState
+        }
+      }
+    }
+  }
+}"))
+    (ghub-graphql query
+                  `((owner . ,owner)
+                    (name . ,repo)
+                    (pr . ,num))
+                  :auth code-review-auth-login-marker
+                  :host code-review-github-graphql-host
+                  :callback (lambda (res &rest _)
+                              (let ((files (a-get-in res (list 'data 'repository 'pullRequest 'files 'nodes)))
+                                    (result nil))
+                                (dolist (f files)
+                                  (push (cons (a-get f 'path)
+                                              (string= (a-get f 'viewerViewedState) "VIEWED"))
+                                        result))
+                                (funcall callback result)))
+                  :errorback (lambda (&rest _)
+                               (funcall callback nil)))))
+
 (provide 'code-review-github)
 ;;; code-review-github.el ends here

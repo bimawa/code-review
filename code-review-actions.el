@@ -768,5 +768,49 @@ If a valid ASSIGNEE is provided, use that instead."
 
 (code-review-set-obsolete-fns)
 
+;;;
+;;;; * Toggle file viewed state
+;;;
+
+;; declared in code-review-section.el
+(declare-function code-review--add-viewed-overlay "code-review-section" (path))
+(declare-function code-review--remove-viewed-overlay "code-review-section" (path))
+(declare-function code-review--viewed-overlay-for "code-review-section" (path))
+
+;;;###autoload
+(defun code-review-toggle-file-viewed ()
+  "Toggle viewed state for the file at point in the current PR.
+
+Sends markFileAsViewed / unmarkFileAsViewed to GitHub and updates
+local indicator immediately so you can track review progress.
+
+Files marked as viewed are fetched from GitHub each time the
+Code Review buffer is built."
+  (interactive)
+  (let ((path (code-review-utils--file-path-at-point))
+        (pr (code-review-db-get-pullreq))
+        (buffer (current-buffer)))
+    (unless path
+      (user-error "Not on a file section"))
+    (unless (code-review-github-repo-p pr)
+      (user-error "File viewed state is only supported for GitHub PRs"))
+
+    (let* ((existing (code-review--viewed-overlay-for path))
+           (viewed (not (not existing)))
+           (new-state (not viewed)))
+      (if new-state
+          (code-review--add-viewed-overlay path)
+        (code-review--remove-viewed-overlay path))
+
+      (message "%s %s..." (if new-state "Marking" "Unmarking") path)
+      (let ((fn (if new-state #'code-review-mark-file-viewed
+                  #'code-review-unmark-file-viewed)))
+        (funcall fn pr path
+                 (lambda ()
+                   (when (buffer-live-p buffer)
+                     (with-current-buffer buffer
+                       (message "%s %s on GitHub ✓"
+                                (if new-state "Viewed" "Unviewed") path)))))))))
+
 (provide 'code-review-actions)
 ;;; code-review-actions.el ends here
