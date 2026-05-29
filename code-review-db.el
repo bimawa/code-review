@@ -30,7 +30,6 @@
 ;;; Code:
 
 (require 'a)
-(require 'emacsql-sqlite)
 (require 'closql)
 (require 'eieio)
 (require 'uuidgen)
@@ -117,7 +116,7 @@
    (buffer              :closql-class code-review-db-buffer))
   :abstract t)
 
-(defclass code-review-db-database (emacsql-sqlite-connection closql-database)
+(defclass code-review-db-database (closql-database)
   ((object-class :initform 'code-review-db-pullreq)))
 
 ;;; LOL, why? why did I started the database on version 7? :/
