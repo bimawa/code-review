@@ -1886,6 +1886,35 @@ If you want to provide a MSG for the end of the process."
                 (setcdr pair t)
               (push (cons path t) code-review-section--viewed-files))))))))
 
+(defun code-review-section--total-files ()
+  "Return total number of changed files in current PR from GraphQL data."
+  (when-let* ((pr (ignore-errors (code-review-db-get-pullreq)))
+              (raw (oref pr raw-infos))
+              (files (a-get-in raw '(files nodes))))
+    (length files)))
+
+(defun code-review-section--viewed-count ()
+  "Return count of files currently marked as viewed."
+  (length (-filter #'cdr code-review-section--viewed-files)))
+
+(defun code-review-section--update-viewed-counter ()
+  "Update header-line-format to show viewed/total counter."
+  (condition-case nil
+      (when-let* ((pr (code-review-db-get-pullreq))
+                  (total (code-review-section--total-files))
+                  ((> total 0)))
+        (let* ((viewed (code-review-section--viewed-count))
+               (title (format "#%s: %s" (oref pr number) (oref pr title)))
+               (counter (format "  [%s/%s viewed]"
+                                (propertize (number-to-string viewed)
+                                            'face '(:foreground "green" :weight bold))
+                                (propertize (number-to-string total)
+                                            'face '(:foreground "dim gray")))))
+          (setq header-line-format
+                (propertize (concat title counter)
+                            'font-lock-face 'magit-section-heading))))
+    (error nil)))
+
 ;;;###autoload
 (defun code-review-section-fetch-viewed-files (&rest _)
   "Fetch viewed file state from GitHub and add check-mark overlays.
@@ -1901,7 +1930,8 @@ Safe to call from `code-review-mode-hook' — errors are caught and logged."
              (with-current-buffer code-review-buffer-name
                (dolist (pair files)
                  (when (cdr pair)
-                   (code-review--add-viewed-overlay (car pair)))))))))
+                   (code-review--add-viewed-overlay (car pair))))
+               (code-review-section--update-viewed-counter))))))
     (error
      (code-review-utils--log "code-review-section-fetch-viewed-files"
                             (format "Error: %S" err)))))

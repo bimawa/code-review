@@ -801,6 +801,7 @@ Code Review buffer is built."
       (if new-state
           (code-review--add-viewed-overlay path)
         (code-review--remove-viewed-overlay path))
+      (code-review-section--update-viewed-counter)
 
       (message "%s %s..." (if new-state "Marking" "Unmarking") path)
       (let ((fn (if new-state #'code-review-mark-file-viewed
