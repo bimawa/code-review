@@ -1871,7 +1871,7 @@ If you want to provide a MSG for the end of the process."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward
-            (concat "^[ \t]*\\(modified\\|added\\|deleted\\|renamed\\)"
+            (concat "^[ \t]*\\(modified\\|added\\|deleted\\|renamed\\|new file\\|copied\\)"
                     "[ \t]+" (regexp-quote path) "$")
             nil t)
       (let ((start (match-beginning 0)))
