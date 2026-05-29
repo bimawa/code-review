@@ -30,6 +30,7 @@
 ;;; Code:
 
 (require 'a)
+(require 'emacsql-sqlite)
 (require 'closql)
 (require 'eieio)
 (require 'uuidgen)
