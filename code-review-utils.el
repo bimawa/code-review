@@ -394,8 +394,11 @@ that repository.  Returns nil if no suitable remote found."
   "Get auth marker for OWNER/REPO.
 Checks git remotes for SSH host suffix matching the repository.
 Falls back to `code-review-auth-login-marker'."
-  (or (code-review-utils--auth-marker-from-remote owner repo)
-      code-review-auth-login-marker))
+  (let ((marker (or (code-review-utils--auth-marker-from-remote owner repo)
+                    code-review-auth-login-marker)))
+    (code-review-utils--log "code-review-utils--get-auth-marker"
+                            (format "owner=%s repo=%s marker=%S" owner repo marker))
+    marker))
 
 ;;; Forge interface
 

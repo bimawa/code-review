@@ -188,13 +188,6 @@ https://github.com/wandersoncferreira/code-review#configuration"))
           login
         }
       }
-      projectCards(first: 10) {
-        nodes {
-          project {
-            name
-          }
-        }
-      }
       suggestedReviewers {
         reviewer {
           name
@@ -362,13 +355,6 @@ https://github.com/wandersoncferreira/code-review#configuration"))
           name
           login
           url
-        }
-      }
-      projectCards(first: 10) {
-        nodes {
-          project {
-            name
-          }
         }
       }
       suggestedReviewers {
