@@ -430,18 +430,18 @@ Falls back to `code-review-auth-login-marker'."
 
 (defun code-review-utils--log (origin msg)
   "Log MSG from ORIGIN to error file."
-  (with-temp-file code-review-log-file
-    (when (not (file-exists-p code-review-log-file))
-      (write-file code-review-log-file))
-    (insert-file-contents code-review-log-file)
-    (goto-char (point-max))
-    (insert ?\n)
-    (insert (current-time-string))
-    (insert " - ")
-    (insert origin)
-    (insert " - ")
-    (insert msg)
-    (insert ?\n)))
+  (let ((line (format "%s - %s - %s\n" (current-time-string) origin msg)))
+    (condition-case nil
+        (let ((file code-review-log-file))
+          (make-directory (file-name-directory file) t)
+          (with-temp-buffer
+            (when (file-exists-p file)
+              (insert-file-contents file))
+            (goto-char (point-max))
+            (insert line)
+            (write-region (point-min) (point-max) file nil 'silent)))
+      (error nil))))
+
 
 ;;; DIFF
 
