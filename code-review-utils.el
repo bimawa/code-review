@@ -354,6 +354,49 @@ Return a value between 0 and 1."
   (/ (+ (* .2126 red) (* .7152 green) (* .0722 blue)) 256))
 
 
+;;; Multi-account auth
+
+(defun code-review-utils--parse-ssh-host-suffix (url)
+  "Extract auth marker suffix from SSH host alias in URL.
+E.g., \"git@github.com-capp:owner/repo.git\" → `capp'.
+Returns nil if no suffix found."
+  (when (string-match "\\\`\\(?:ssh://\\)?\\(?:[^@]+@\\)?\\([^:/]+\\)" url)
+    (let ((host (match-string 1 url)))
+      (when (string-match "-\\([^.-]+\\)\\\'" host)
+        (intern (match-string 1 host))))))
+
+(defun code-review-utils--auth-marker-from-remote (&optional owner repo)
+  "Determine auth marker from SSH host alias in git remotes.
+When OWNER and REPO are given, only consider remotes matching
+that repository.  Returns nil if no suitable remote found."
+  (let ((git-dir (locate-dominating-file default-directory ".git")))
+    (when git-dir
+      (with-temp-buffer
+        (let ((default-directory git-dir))
+          (call-process "git" nil t nil "remote" "-v"))
+        (goto-char (point-min))
+        (let ((result nil))
+          (while (and (not result) (not (eobp)))
+            (let* ((line (buffer-substring (line-beginning-position) (line-end-position)))
+                   (url-end (string-match "[ \t]\\(?:\\(?:fetch\\)\|\\(?:push\\)\\)\\\'" line))
+                   (url (when url-end (substring line 0 url-end))))
+              (when (and url
+                         (or (null owner) (null repo)
+                             (string-match (format "%s[:/]%s\\(?:\\.git\\)?\\\'"
+                                                   (regexp-quote owner)
+                                                   (regexp-quote repo))
+                                           url)))
+                (setq result (code-review-utils--parse-ssh-host-suffix url))))
+            (forward-line 1))
+          result)))))
+
+(defun code-review-utils--get-auth-marker (owner repo)
+  "Get auth marker for OWNER/REPO.
+Checks git remotes for SSH host suffix matching the repository.
+Falls back to `code-review-auth-login-marker'."
+  (or (code-review-utils--auth-marker-from-remote owner repo)
+      code-review-auth-login-marker))
+
 ;;; Forge interface
 
 (defun code-review-utils--alist-forge-at-point ()
