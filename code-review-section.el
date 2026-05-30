@@ -1676,9 +1676,9 @@ If you want to display a minibuffer MSG in the end."
             raw-infos-complete)))
 
     (when errors-complete-query
+      (message "GraphQL ERRORS: %s" (prin1-to-string errors-complete-query))
       (code-review-utils--log "code-review--internal-build"
-                        (format "Data returned by GraphQL API: \n %s" (prin1-to-string res)))
-      (message "GraphQL Github data contains errors. See `code-review-log-file' for details."))
+                        (format "Data returned by GraphQL API: \n %s" (prin1-to-string res))))
 
     ;; verify must have value!
     (let-alist raw-infos
