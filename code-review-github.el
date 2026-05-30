@@ -33,6 +33,7 @@
 (require 'code-review-interfaces)
 (require 'code-review-db)
 (require 'a)
+(require 'code-review-utils)
 
 (defclass code-review-github-repo (code-review-db-pullreq)
   ((callback            :initform nil)))
@@ -85,7 +86,7 @@ https://github.com/wandersoncferreira/code-review#configuration"))
               nil
               :unpaginate t
               :headers code-review-github-diffheader
-              :auth code-review-auth-login-marker
+              :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
               :host code-review-github-host
               :callback callback
               :errorback #'code-review-github-errback)))
@@ -110,7 +111,7 @@ https://github.com/wandersoncferreira/code-review#configuration"))
               nil
               :unpaginate t
               :headers code-review-github-diffheader
-              :auth code-review-auth-login-marker
+              :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
               :host code-review-github-host
               :callback callback
               :errorback #'code-review-github-errback)))
@@ -497,7 +498,7 @@ https://github.com/wandersoncferreira/code-review#configuration"))
                   num)))
     (ghub-graphql query
                   nil
-                  :auth code-review-auth-login-marker
+                  :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                   :host code-review-github-graphql-host
                   :callback callback
                   :errorback #'code-review-github-errback)))
@@ -521,7 +522,7 @@ Optionally ask for the FALLBACK? query."
                            (oref github owner)
                            (oref github repo))
                    nil
-                   :auth code-review-auth-login-marker
+                   :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                    :host code-review-github-host
                    :noerror 'return)))
     (if (eq (car (-first-item resp)) 'message)
@@ -547,7 +548,7 @@ Optionally ask for the FALLBACK? query."
                                                    (a-get x 'name))
                                                  (oref github labels))
                                            []))
-             :auth code-review-auth-login-marker
+             :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
              :host code-review-github-host
              :errorback #'code-review-github-errback
              :callback (lambda (&rest _) (funcall callback)))))
@@ -559,7 +560,7 @@ Optionally ask for the FALLBACK? query."
                            (oref github owner)
                            (oref github repo))
                    nil
-                   :auth code-review-auth-login-marker
+                   :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                    :host code-review-github-host
                    :noerror 'return)))
     (if (eq (car (-first-item resp)) 'message)
@@ -577,7 +578,7 @@ Optionally ask for the FALLBACK? query."
                      (oref github repo)
                      (oref github number))
              nil
-             :auth code-review-auth-login-marker
+             :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
              :host code-review-github-host
              :payload (a-alist 'assignees (-map (lambda (it)
                                                   (a-get it 'login))
@@ -592,7 +593,7 @@ Optionally ask for the FALLBACK? query."
                            (oref github owner)
                            (oref github repo))
                    nil
-                   :auth code-review-auth-login-marker
+                   :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                    :host code-review-github-host
                    :noerror 'return)))
     (if (eq (car (-first-item resp)) 'message)
@@ -610,7 +611,7 @@ Optionally ask for the FALLBACK? query."
                       (oref github repo)
                       (oref github number))
               nil
-              :auth code-review-auth-login-marker
+              :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
               :host code-review-github-host
               :payload (a-alist 'milestone (a-get (oref github milestones) 'number))
               :errorback #'code-review-github-errback
@@ -627,7 +628,7 @@ Optionally ask for the FALLBACK? query."
                       (oref github repo)
                       (oref github number))
               nil
-              :auth code-review-auth-login-marker
+              :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
               :host code-review-github-host
               :payload (a-alist 'title (oref github title))
               :errorback #'code-review-github-errback
@@ -641,7 +642,7 @@ Optionally ask for the FALLBACK? query."
                       (oref github repo)
                       (oref github number))
               nil
-              :auth code-review-auth-login-marker
+              :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
               :host code-review-github-host
               :payload (a-alist 'body (a-get (oref github raw-infos) 'bodyText))
               :errorback #'code-review-github-errback
@@ -654,7 +655,7 @@ Optionally ask for the FALLBACK? query."
                     (oref github repo)
                     (oref github number))
             nil
-            :auth code-review-auth-login-marker
+            :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
             :host code-review-github-host
             :payload (a-alist 'commit_title (oref github title)
                               'commit_message (oref github description)
@@ -683,7 +684,7 @@ Optionally ask for the FALLBACK? query."
                        (oref github repo)
                        path)
                nil
-               :auth code-review-auth-login-marker
+               :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                :host code-review-github-host
                :payload (a-alist 'content r))))
 
@@ -701,7 +702,7 @@ Optionally ask for the FALLBACK? query."
                          (oref github repo)
                          path)
                  nil
-                 :auth code-review-auth-login-marker
+                 :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                  :host code-review-github-host)))
 
 (defclass code-review-submit-github-replies ()
@@ -727,7 +728,7 @@ Optionally ask for the FALLBACK? query."
                         nil
                         :payload (a-alist 'body (oref reply body))
                         :headers code-review-github-diffheader
-                        :auth code-review-auth-login-marker
+                        :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                         :host code-review-github-host
                         :callback (lambda (&rest _))
                         :errorback #'code-review-github-errback)))
@@ -774,7 +775,7 @@ Optionally ask for the FALLBACK? query."
                        (oref pr repo)
                        (oref pr number))
                nil
-               :auth code-review-auth-login-marker
+               :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                :payload payload
                :host code-review-github-host
                :errorback #'code-review-github-errback
@@ -807,7 +808,7 @@ Optionally ask for the FALLBACK? query."
                                            `((repo_owner . ,(oref github owner))
                                              (repo_name . ,(oref github repo))
                                              (cursor . ,cursor))
-                                           :auth code-review-auth-login-marker
+                                           :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                                            :host code-review-github-graphql-host)))
             (let-alist graphql-res
               (setq has-next-page .data.repository.assignableUsers.pageInfo.hasNextPage
@@ -831,7 +832,7 @@ Optionally ask for the FALLBACK? query."
     (ghub-graphql query
                   `((input . ((pullRequestId . ,pr-id)
                               (userIds . ,user-ids))))
-                  :auth code-review-auth-login-marker
+                  :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                   :host code-review-github-graphql-host
                   :callback (lambda (&rest _)
                               (message "Review requested successfully!")
@@ -844,7 +845,7 @@ Optionally ask for the FALLBACK? query."
                      (oref github owner)
                      (oref github repo))
              nil
-             :auth code-review-auth-login-marker
+             :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
              :host code-review-github-host
              :payload (a-alist 'body body 'title title)
              :errorback #'code-review-github-errback
@@ -906,7 +907,7 @@ Return the blob URL if BLOB? is provided."
                      (oref github repo)
                      (oref github number))
              nil
-             :auth code-review-auth-login-marker
+             :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
              :host code-review-github-host
              :payload (a-alist 'body comment-msg)
              :callback callback
@@ -919,7 +920,7 @@ Return the blob URL if BLOB? is provided."
                      (oref github repo)
                      (oref github number))
              nil
-             :auth code-review-auth-login-marker
+             :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
              :headers '(("Accept" . "application/vnd.github.v3+json"))
              :host code-review-github-host
              :payload (a-alist 'path (oref local-comment path)
@@ -942,7 +943,7 @@ Return the blob URL if BLOB? is provided."
     (ghub-graphql query
                   `((input . ((pullRequestId . ,pr-id)
                               (path . ,path))))
-                  :auth code-review-auth-login-marker
+                  :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                   :host code-review-github-graphql-host
                   :callback (lambda (&rest _) (funcall callback))
                   :errorback #'code-review-github-errback)))
@@ -958,7 +959,7 @@ Return the blob URL if BLOB? is provided."
     (ghub-graphql query
                   `((input . ((pullRequestId . ,pr-id)
                               (path . ,path))))
-                  :auth code-review-auth-login-marker
+                  :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                   :host code-review-github-graphql-host
                   :callback (lambda (&rest _) (funcall callback))
                   :errorback #'code-review-github-errback)))
@@ -987,7 +988,7 @@ CALLBACK receives an alist of ((path . viewed-p) ...)."
                   `((owner . ,owner)
                     (name . ,repo)
                     (pr . ,num))
-                  :auth code-review-auth-login-marker
+                  :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
                   :host code-review-github-graphql-host
                   :callback (lambda (res &rest _)
                               (let ((files (a-get-in res (list 'data 'repository 'pullRequest 'files 'nodes)))
