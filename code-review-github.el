@@ -714,7 +714,7 @@ Optionally ask for the FALLBACK? query."
                         nil
                         :payload (a-alist 'body (oref reply body))
                         :headers code-review-github-diffheader
-                        :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
+                        :auth (code-review-utils--get-auth-marker (oref pr owner) (oref pr repo))
                         :host code-review-github-host
                         :callback (lambda (&rest _))
                         :errorback #'code-review-github-errback)))
@@ -761,7 +761,7 @@ Optionally ask for the FALLBACK? query."
                        (oref pr repo)
                        (oref pr number))
                nil
-               :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
+               :auth (code-review-utils--get-auth-marker (oref pr owner) (oref pr repo))
                :payload payload
                :host code-review-github-host
                :errorback #'code-review-github-errback
