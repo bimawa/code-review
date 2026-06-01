@@ -245,8 +245,9 @@ Optionally define a MSG."
                                                (a-get obj 'head-pos)))))
                                 (and (> e diff-pos) e))))
                ;; Convert diff-relative positions to file line numbers
-               ;; hunk value = (about . ranges) where ranges = ((base?) (from) (to))
-               (to-start (car (car (last (cdr obj)))))
+               ;; section value = (value . (hunk-value . ranges) path . ... head-pos . N)
+               (to-start (let ((hunk-val (a-get obj 'value)))
+                           (car (car (last (cdr hunk-val))))))
                (file-line (+ to-start diff-pos -1))
                (file-end  (and diff-end (+ to-start diff-end -1)))
                (local-comment (code-review-local-comment-section
