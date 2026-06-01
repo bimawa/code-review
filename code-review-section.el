@@ -1400,70 +1400,41 @@ We need PATH-NAME, MISSING-PATHS, and GROUPED-COMMENTS to make this work."
        comment-written-pos)
       (push path-pos code-review-section-hold-written-comment-ids))))
 
-;;; Override `magit-section-paint' for hunk sections to skip nested
-;;; comment sections inserted by code-review.  The default method paints
-;;; ALL lines in the hunk section, including comment text, which results
-;;; in wrong faces (diff-added / diff-removed / diff-context) on comments.
-;;; See https://github.com/wandersoncferreira/code-review/issues/...
+;;; After `magit-section-paint' paints a hunk, fix faces on any nested
+;;; comment sections so they don't end up with wrong diff faces.
+;;; (We use advice instead of `cl-defmethod' to avoid triggering
+;;;  Doom's incremental loader with the `magit-hunk-section' class.)
 
-;;; Use `with-eval-after-load' to avoid issues with Doom's incremental
-;;; loader, which may process top-level forms before magit is fully
-;;; loaded; `magit-hunk-section' would not be defined yet.
-
-(with-eval-after-load 'magit-diff
-(cl-defmethod magit-section-paint ((section magit-hunk-section) highlight)
-  (unless magit-diff-highlight-hunk-body
-    (setq highlight nil))
-  (let ((end (oref section end))
-        (merging (looking-at "@@@"))
-        (diff-type (magit-diff-type))
-        (stage nil)
-        (tab-width (magit-diff-tab-width
-                    (magit-section-parent-value section))))
-    (forward-line)
-    (while (< (point) end)
-      (let ((current (magit-current-section)))
-        (cond
-         ;; Point is inside a nested section (e.g. code-review comment).
-         ;; Skip to end of that section instead of painting it.
-         ((and current (not (eq current section)))
-          (ignore-errors
-            (goto-char (oref current end))))
-         (t
-          (when (and magit-diff-hide-trailing-cr-characters
-                     (char-equal ?\r (char-before (line-end-position))))
-            (put-text-property (1- (line-end-position)) (line-end-position)
-                               'invisible t))
-          (put-text-property
-           (point) (1+ (line-end-position)) 'font-lock-face
-           (cond
-            ((looking-at "^\\+\\+?\\([<=|>]\\)\\{7\\}")
-             (setq stage (pcase (list (match-string 1) highlight)
-                           ('("<" nil) 'magit-diff-our)
-                           ('("<"   t) 'magit-diff-our-highlight)
-                           ('("|" nil) 'magit-diff-base)
-                           ('("|"   t) 'magit-diff-base-highlight)
-                           ('("=" nil) 'magit-diff-their)
-                           ('("="   t) 'magit-diff-their-highlight)
-                           ('(">" nil) nil)))
-             'magit-diff-conflict-heading)
-            ((looking-at (if merging "^\\(\\+\\| \\+\\)" "^\\+"))
-             (magit-diff-paint-tab merging tab-width)
-             (magit-diff-paint-whitespace merging 'added diff-type)
-             (or stage
-                 (if highlight 'magit-diff-added-highlight 'magit-diff-added)))
-            ((looking-at (if merging "^\\(-\\| -\\)" "^-"))
-             (magit-diff-paint-tab merging tab-width)
-             (magit-diff-paint-whitespace merging 'removed diff-type)
-             (if highlight 'magit-diff-removed-highlight 'magit-diff-removed))
-            (t
-             (magit-diff-paint-tab merging tab-width)
-             (magit-diff-paint-whitespace merging 'context diff-type)
-             (if highlight 'magit-diff-context-highlight 'magit-diff-context))))
-          (forward-line)))))))
-  (when (eq magit-diff-refine-hunk 'all)
-    (magit-diff-update-hunk-refinement section))
-  (oset section painted (if highlight 'highlight 'plain)))
+(defun cr--fix-hunk-nested-comment-faces (section highlight)
+  "After `magit-section-paint' painted a hunk, fix faces on nested comment sections.
+Without this, comment text inside a hunk gets diff faces."
+  (when (and (cl-typep section 'magit-hunk-section)
+             (derived-mode-p 'code-review-mode))
+    (let ((end (oref section end))
+          (default-face (if highlight
+                            'magit-diff-context-highlight
+                          'magit-diff-context)))
+      (save-excursion
+        (goto-char (oref section start))
+        (forward-line) ; skip heading
+        (while (< (point) end)
+          (let ((current (magit-current-section)))
+            (if (and current (not (eq current section)))
+                ;; Point is inside a nested section — fix its face
+                (let ((nested-end (oref current end)))
+                  (while (< (point) nested-end)
+                    (let ((face (get-text-property (point) 'font-lock-face)))
+                      ;; Only replace if the line has a wrong diff face
+                      (when (memq face '(magit-diff-added
+                                         magit-diff-added-highlight
+                                         magit-diff-removed
+                                         magit-diff-removed-highlight
+                                         magit-diff-context
+                                         magit-diff-context-highlight))
+                        (put-text-property (point) (1+ (line-end-position))
+                                           'font-lock-face default-face)))
+                    (forward-line)))
+              (forward-line))))))))
 
 (defun code-review-section-insert-comment (comments amount-loc)
   "Insert COMMENTS to PULLREQ-ID keep the AMOUNT-LOC of comments written.
@@ -1665,6 +1636,9 @@ If you want to display a minibuffer MSG in the end."
         ;; advices
         (advice-add 'magit-diff-insert-file-section :override #'code-review-section--magit-diff-insert-file-section)
         (advice-add 'magit-diff-wash-hunk :override #'code-review-section--magit-diff-wash-hunk)
+        (unless (get 'magit-section-paint 'cr--fix-hunk-advice-installed)
+          (put 'magit-section-paint 'cr--fix-hunk-advice-installed t)
+          (advice-add 'magit-section-paint :after 'cr--fix-hunk-nested-comment-faces))
 
         (setq code-review-section-grouped-comments
               (code-review-utils-make-group
