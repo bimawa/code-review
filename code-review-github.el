@@ -753,21 +753,24 @@ Optionally ask for the FALLBACK? query."
 (cl-defmethod code-review-send-review ((review code-review-submit-github-review) callback)
   "Submit review comments given REVIEW and a CALLBACK fn."
   (let* ((pr (oref review pr))
-         ;; Build payload as a proper alist with dotted pairs throughout
-         (payload `((event . ,(oref review state))
-                    (commit_id . ,(oref pr sha))
-                    ,@(and (oref review feedback)
-                           `((body . ,(oref review feedback))))
-                    ,@(and (oref review local-comments)
-                           `((comments . ,(--sort
-                                          (< (a-get it 'position)
-                                             (a-get other 'position))
-                                          (-map
-                                           (lambda (c)
-                                             `((path . ,(oref c path))
-                                               (position . ,(oref c position))
-                                               (body . ,(oref c body))))
-                                           (oref review local-comments))))))))
+         (payload-base `((event . ,(oref review state))
+                         (commit_id . ,(oref pr sha))))
+         (payload (if (oref review feedback)
+                      (append payload-base
+                              `((body . ,(oref review feedback))))
+                    payload-base))
+         (payload (if (oref review local-comments)
+                      (append payload
+                              `((comments . ,(--sort
+                                            (< (a-get it 'position)
+                                               (a-get other 'position))
+                                            (-map
+                                             (lambda (c)
+                                               `((path . ,(oref c path))
+                                                 (position . ,(oref c position))
+                                                 (body . ,(oref c body))))
+                                             (oref review local-comments))))))
+                    payload)))
     (condition-case err
         (ghub-post (format "/repos/%s/%s/pulls/%s/reviews"
                            (oref pr owner)
@@ -781,7 +784,7 @@ Optionally ask for the FALLBACK? query."
                    :callback callback)
       (error
        (message "[code-review] SEND-REVIEW error: %S %S" (car err) (cdr err))
-       nil)))))
+       nil))))
 
 (cl-defmethod code-review-get-assignable-users ((github code-review-github-repo))
   "Get a list of assignable users for current PR in GITHUB."

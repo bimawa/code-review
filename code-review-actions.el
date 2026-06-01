@@ -104,6 +104,7 @@
 If you already have a FEEDBACK string use it.
 If you want only to submit replies, use ONLY-REPLY? as non-nil."
   (interactive)
+  (message "[code-review] --submit event=%S feedback=%S only-reply?=%S" event feedback only-reply?)
   (setq code-review-comment-cursor-pos (point))
   (let* ((pr (code-review-db-get-pullreq))
          (review-obj (cond
@@ -165,6 +166,8 @@ If you want only to submit replies, use ONLY-REPLY? as non-nil."
 
       (oset replies-obj replies replies)
       (oset review-obj local-comments local-comments)
+      (message "[code-review] scan found %d replies, %d local-comments"
+               (length replies) (length local-comments))
 
       (if (and (code-review--submit-feedback-required? review-obj)
                (not only-reply?))
