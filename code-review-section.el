@@ -1400,6 +1400,66 @@ We need PATH-NAME, MISSING-PATHS, and GROUPED-COMMENTS to make this work."
        comment-written-pos)
       (push path-pos code-review-section-hold-written-comment-ids))))
 
+;;; Override `magit-section-paint' for hunk sections to skip nested
+;;; comment sections inserted by code-review.  The default method paints
+;;; ALL lines in the hunk section, including comment text, which results
+;;; in wrong faces (diff-added / diff-removed / diff-context) on comments.
+;;; See https://github.com/wandersoncferreira/code-review/issues/...
+
+(cl-defmethod magit-section-paint ((section magit-hunk-section) highlight)
+  (unless magit-diff-highlight-hunk-body
+    (setq highlight nil))
+  (let ((end (oref section end))
+        (merging (looking-at "@@@"))
+        (diff-type (magit-diff-type))
+        (stage nil)
+        (tab-width (magit-diff-tab-width
+                    (magit-section-parent-value section))))
+    (forward-line)
+    (while (< (point) end)
+      (let ((current (magit-current-section)))
+        (cond
+         ;; Point is inside a nested section (e.g. code-review comment).
+         ;; Skip to end of that section instead of painting it.
+         ((and current (not (eq current section)))
+          (ignore-errors
+            (goto-char (oref current end))))
+         (t
+          (when (and magit-diff-hide-trailing-cr-characters
+                     (char-equal ?\r (char-before (line-end-position))))
+            (put-text-property (1- (line-end-position)) (line-end-position)
+                               'invisible t))
+          (put-text-property
+           (point) (1+ (line-end-position)) 'font-lock-face
+           (cond
+            ((looking-at "^\\+\\+?\\([<=|>]\\)\\{7\\}")
+             (setq stage (pcase (list (match-string 1) highlight)
+                           ('("<" nil) 'magit-diff-our)
+                           ('("<"   t) 'magit-diff-our-highlight)
+                           ('("|" nil) 'magit-diff-base)
+                           ('("|"   t) 'magit-diff-base-highlight)
+                           ('("=" nil) 'magit-diff-their)
+                           ('("="   t) 'magit-diff-their-highlight)
+                           ('(">" nil) nil)))
+             'magit-diff-conflict-heading)
+            ((looking-at (if merging "^\\(\\+\\| \\+\\)" "^\\+"))
+             (magit-diff-paint-tab merging tab-width)
+             (magit-diff-paint-whitespace merging 'added diff-type)
+             (or stage
+                 (if highlight 'magit-diff-added-highlight 'magit-diff-added)))
+            ((looking-at (if merging "^\\(-\\| -\\)" "^-"))
+             (magit-diff-paint-tab merging tab-width)
+             (magit-diff-paint-whitespace merging 'removed diff-type)
+             (if highlight 'magit-diff-removed-highlight 'magit-diff-removed))
+            (t
+             (magit-diff-paint-tab merging tab-width)
+             (magit-diff-paint-whitespace merging 'context diff-type)
+             (if highlight 'magit-diff-context-highlight 'magit-diff-context))))
+          (forward-line)))))))
+  (when (eq magit-diff-refine-hunk 'all)
+    (magit-diff-update-hunk-refinement section))
+  (oset section painted (if highlight 'highlight 'plain)))
+
 (defun code-review-section-insert-comment (comments amount-loc)
   "Insert COMMENTS to PULLREQ-ID keep the AMOUNT-LOC of comments written.
 A quite good assumption: every comment in an outdated hunk will be outdated."
@@ -1578,7 +1638,6 @@ Please Report this Bug" path-name))
 
         ;;; --- end -- code-review specific code.
           (oset section end (point))
-          (oset section washer 'magit-diff-paint-hunk)
           (oset section combined combined)
           (if combined
               (oset section from-ranges (butlast ranges))
