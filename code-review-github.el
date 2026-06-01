@@ -764,9 +764,16 @@ Optionally ask for the FALLBACK? query."
                                    (copy-sequence
                                     (-map
                                      (lambda (c)
-                                       `((path . ,(oref c path))
-                                         (position . ,(oref c position))
-                                         (body . ,(oref c body))))
+                                       (let ((start (oref c position))
+                                             (end   (oref c line)))
+                                         (if end
+                                             `((path . ,(oref c path))
+                                               (body . ,(oref c body))
+                                               (start_line . ,start)
+                                               (line . ,end))
+                                           `((path . ,(oref c path))
+                                             (body . ,(oref c body))
+                                             (line . ,start)))))
                                      (oref review local-comments)))
                                    (lambda (a b)
                                      (< (a-get a 'position)
@@ -929,13 +936,21 @@ Return the blob URL if BLOB? is provided."
                          (oref github repo)
                          (oref github number))
                  nil
-                 :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
+                 :auth 'code-review
                  :headers '(("Accept" . "application/vnd.github.v3+json"))
                  :host code-review-github-host
-                 :payload (a-alist 'path (oref local-comment path)
-                                   'position (oref local-comment position)
-                                   'body (oref local-comment msg)
-                                   'commit_id (oref github sha))
+                 :payload (let ((start (oref local-comment position))
+                                (end   (oref local-comment line)))
+                            (if end
+                                `((path . ,(oref local-comment path))
+                                  (body . ,(oref local-comment msg))
+                                  (commit_id . ,(oref github sha))
+                                  (start_line . ,start)
+                                  (line . ,end))
+                              `((path . ,(oref local-comment path))
+                                (body . ,(oref local-comment msg))
+                                (commit_id . ,(oref github sha))
+                                (line . ,start))))
                  :callback callback
                  :errorback #'code-review-github-errback)
     (error

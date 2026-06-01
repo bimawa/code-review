@@ -193,7 +193,9 @@ Optionally define a MSG."
   (with-slots (type) (magit-current-section)
     (if (not (equal type 'hunk))
         (message "You can't add text over unspecified region.")
-      (let* ((current-line (line-number-at-pos))
+      (let* ((region-start (and (region-active-p) (region-beginning)))
+             (region-end   (and (region-active-p) (region-end)))
+             (current-line (line-number-at-pos))
              (line (save-excursion
                      (buffer-substring-no-properties
                       (line-beginning-position)
@@ -226,11 +228,16 @@ Optionally define a MSG."
         (let* ((diff-pos (+ 1 (- current-line
                                  amount-loc
                                  (a-get obj 'head-pos))))
+               (diff-end (when region-start
+                           (+ 1 (- (line-number-at-pos region-end)
+                                   amount-loc
+                                   (a-get obj 'head-pos)))))
                (local-comment (code-review-local-comment-section
                                :state "LOCAL COMMENT"
                                :author (code-review-utils--git-get-user)
                                :path (a-get obj 'path)
                                :position diff-pos
+                               :line (and diff-end (> diff-end diff-pos) diff-end)
                                :line-type line-type
                                :send? code-review-comment-send?)))
           (setq code-review-comment-uncommitted local-comment)
