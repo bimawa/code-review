@@ -195,8 +195,11 @@ Optionally define a MSG."
         (message "You can't add text over unspecified region.")
       (let* ((region-start (and (region-active-p) (region-beginning)))
              (region-end   (and (region-active-p) (region-end)))
-             (current-line (line-number-at-pos))
+             ;; Use region lines when available, else current line
+             (first-line (line-number-at-pos (or region-start (point))))
+             (last-line  (line-number-at-pos (or region-end (point))))
              (line (save-excursion
+                     (when region-start (goto-char region-start))
                      (buffer-substring-no-properties
                       (line-beginning-position)
                       (line-end-position))))
@@ -207,10 +210,25 @@ Optionally define a MSG."
                           "ADDED")
                          (t
                           "UNCHANGED")))
+             ;; Build suggestion from region text, stripping +/- prefix
              (suggestion
-              (format "%s\n\n```suggestion\n%s\n```\n"
-                      code-review-comment-suggestion-msg
-                      (substring line 1)))
+              (let ((code (if region-start
+                              (save-excursion
+                                (goto-char region-start)
+                                (string-join
+                                 (-map (lambda (l) (substring l (if (string-prefix-p " " l) 1 0)))
+                                       (split-string
+                                        (buffer-substring-no-properties
+                                         (save-excursion
+                                           (goto-char region-start)
+                                           (line-beginning-position))
+                                         (save-excursion
+                                           (goto-char region-end)
+                                           (line-end-position)))
+                                        "\n")))
+                            (substring line 1))))
+                (format "%s\n\n```suggestion\n%s\n```\n"
+                        code-review-comment-suggestion-msg code)))
              (amount-loc nil))
         (save-excursion
           (while (and (not (looking-at
@@ -225,11 +243,11 @@ Optionally define a MSG."
                     (setq amount-loc 0)
                   (setq amount-loc (or (oref value amount-loc) 0)))))))
 
-        (let* ((diff-pos (+ 1 (- current-line
+        (let* ((diff-pos (+ 1 (- first-line
                                  amount-loc
                                  (a-get obj 'head-pos))))
                (diff-end (when region-start
-                           (+ 1 (- (line-number-at-pos region-end)
+                           (+ 1 (- last-line
                                    amount-loc
                                    (a-get obj 'head-pos)))))
                (local-comment (code-review-local-comment-section
@@ -246,8 +264,7 @@ Optionally define a MSG."
                 (code-review-comment-add suggestion)
                 (with-current-buffer (get-buffer code-review-comment-buffer-name)
                   (forward-line -2)))
-            (code-review-comment-add)))))))
-
+            (code-review-comment-add))))))))
 
 ;;;###autoload
 (defun code-review-comment-add-or-edit (&optional suggestion-code?)
