@@ -195,9 +195,7 @@ Optionally define a MSG."
         (message "You can't add text over unspecified region.")
       (let* ((region-start (and (region-active-p) (region-beginning)))
              (region-end   (and (region-active-p) (region-end)))
-             ;; Use region lines when available, else current line
-             (first-line (line-number-at-pos (or region-start (point))))
-             (last-line  (line-number-at-pos (or region-end (point))))
+             (current-line (line-number-at-pos (or region-start (point))))
              (line (save-excursion
                      (when region-start (goto-char region-start))
                      (buffer-substring-no-properties
@@ -210,22 +208,17 @@ Optionally define a MSG."
                           "ADDED")
                          (t
                           "UNCHANGED")))
-             ;; Build suggestion from region text, stripping +/- prefix
              (suggestion
               (let ((code (if region-start
                               (save-excursion
                                 (goto-char region-start)
-                                (string-join
-                                 (mapcar (lambda (l) (substring l 1))
-                                       (split-string
-                                        (buffer-substring-no-properties
-                                         (save-excursion
-                                           (goto-char region-start)
-                                           (line-beginning-position))
-                                         (save-excursion
-                                           (goto-char region-end)
-                                           (line-end-position)))
-                                        "\n")))
+                                (let* ((s (line-beginning-position))
+                                       (e (progn (goto-char region-end) (line-end-position)))
+                                       (txt (buffer-substring-no-properties s e))
+                                       (lines (split-string txt "\n")))
+                                  (string-join
+                                   (mapcar (lambda (l) (if (> (length l) 1) (substring l 1) "")) lines)
+                                   "\n")))
                             (substring line 1))))
                 (format "%s\n\n```suggestion\n%s\n```\n"
                         code-review-comment-suggestion-msg code)))
@@ -243,19 +236,19 @@ Optionally define a MSG."
                     (setq amount-loc 0)
                   (setq amount-loc (or (oref value amount-loc) 0)))))))
 
-        (let* ((diff-pos (+ 1 (- first-line
+        (let* ((diff-pos (+ 1 (- current-line
                                  amount-loc
                                  (a-get obj 'head-pos))))
-               (diff-end (when region-start
-                           (+ 1 (- last-line
-                                   amount-loc
-                                   (a-get obj 'head-pos)))))
                (local-comment (code-review-local-comment-section
                                :state "LOCAL COMMENT"
                                :author (code-review-utils--git-get-user)
                                :path (a-get obj 'path)
                                :position diff-pos
-                               :line (and diff-end (> diff-end diff-pos) diff-end)
+                               :line (and region-start
+                                         (let ((end (+ 1 (- (line-number-at-pos region-end)
+                                                            amount-loc
+                                                            (a-get obj 'head-pos)))))
+                                           (and (> end diff-pos) end)))
                                :line-type line-type
                                :send? code-review-comment-send?)))
           (setq code-review-comment-uncommitted local-comment)
@@ -264,7 +257,8 @@ Optionally define a MSG."
                 (code-review-comment-add suggestion)
                 (with-current-buffer (get-buffer code-review-comment-buffer-name)
                   (forward-line -2)))
-            (code-review-comment-add))))))))
+            (code-review-comment-add)))))))
+
 
 ;;;###autoload
 (defun code-review-comment-add-or-edit (&optional suggestion-code?)
