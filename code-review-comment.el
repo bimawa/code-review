@@ -239,16 +239,22 @@ Optionally define a MSG."
         (let* ((diff-pos (+ 1 (- current-line
                                  amount-loc
                                  (a-get obj 'head-pos))))
+               (diff-end (and region-start
+                              (let ((e (+ 1 (- (line-number-at-pos region-end)
+                                               amount-loc
+                                               (a-get obj 'head-pos)))))
+                                (and (> e diff-pos) e))))
+               ;; Convert diff-relative positions to file line numbers
+               ;; hunk value = (about . ranges) where ranges = ((base?) (from) (to))
+               (to-start (car (car (last (cdr obj)))))
+               (file-line (+ to-start diff-pos -1))
+               (file-end  (and diff-end (+ to-start diff-end -1)))
                (local-comment (code-review-local-comment-section
                                :state "LOCAL COMMENT"
                                :author (code-review-utils--git-get-user)
                                :path (a-get obj 'path)
                                :position diff-pos
-                               :line (and region-start
-                                         (let ((end (+ 1 (- (line-number-at-pos region-end)
-                                                            amount-loc
-                                                            (a-get obj 'head-pos)))))
-                                           (and (> end diff-pos) end)))
+                               :line file-line
                                :line-type line-type
                                :send? code-review-comment-send?)))
           (setq code-review-comment-uncommitted local-comment)
