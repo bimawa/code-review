@@ -1406,6 +1406,11 @@ We need PATH-NAME, MISSING-PATHS, and GROUPED-COMMENTS to make this work."
 ;;; in wrong faces (diff-added / diff-removed / diff-context) on comments.
 ;;; See https://github.com/wandersoncferreira/code-review/issues/...
 
+;;; Use `with-eval-after-load' to avoid issues with Doom's incremental
+;;; loader, which may process top-level forms before magit is fully
+;;; loaded; `magit-hunk-section' would not be defined yet.
+
+(with-eval-after-load 'magit-diff
 (cl-defmethod magit-section-paint ((section magit-hunk-section) highlight)
   (unless magit-diff-highlight-hunk-body
     (setq highlight nil))
