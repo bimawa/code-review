@@ -760,15 +760,17 @@ Optionally ask for the FALLBACK? query."
                               `((body . ,(oref review feedback))))
                     payload-base))
          (payload (if (oref review local-comments)
-                      (let ((clist (-sort
-                                   (< (a-get it 'position)
-                                      (a-get other 'position))
-                                   (-map
-                                    (lambda (c)
-                                      `((path . ,(oref c path))
-                                        (position . ,(oref c position))
-                                        (body . ,(oref c body))))
-                                    (oref review local-comments)))))
+                      (let ((clist (sort
+                                   (copy-sequence
+                                    (-map
+                                     (lambda (c)
+                                       `((path . ,(oref c path))
+                                         (position . ,(oref c position))
+                                         (body . ,(oref c body))))
+                                     (oref review local-comments)))
+                                   (lambda (a b)
+                                     (< (a-get a 'position)
+                                        (a-get b 'position))))))
                         (append payload
                                 `((comments . [,@clist]))))
                     payload)))
