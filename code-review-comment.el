@@ -313,6 +313,7 @@ Inform if a SUGGESTION-CODE? is being proposed."
                                           (bodyText . ,clean-msg)
                                           (path . ,(oref obj path))
                                           (position . ,(oref obj position))
+                                          (line . ,(oref obj line))
                                           (databaseId)
                                           (diffHunk)
                                           (outdated)

@@ -202,6 +202,7 @@ using COMMENTS."
                                :createdAt .createdAt
                                :updatedAt .updatedAt
                                :line-type .line-type
+                               :line   .line
                                :send? nil))
                              (t
                               (code-review-code-comment-section

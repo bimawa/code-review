@@ -776,8 +776,8 @@ Optionally ask for the FALLBACK? query."
                                              (line . ,start)))))
                                      (oref review local-comments)))
                                    (lambda (a b)
-                                     (< (a-get a 'position)
-                                        (a-get b 'position))))))
+                                     (< (or (a-get a 'start_line) (a-get a 'line) 0)
+                                        (or (a-get b 'start_line) (a-get b 'line) 0))))))
                         (append payload
                                 `((comments . [,@clist]))))
                     payload)))
