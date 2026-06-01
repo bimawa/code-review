@@ -1908,9 +1908,12 @@ If you want to provide a MSG for the end of the process."
   "Add a viewed CHECK MARK overlay before the file heading for PATH."
   (save-excursion
     (goto-char (point-min))
+    ;; For renamed files the line is "renamed  old/path -> new/path",
+    ;; but `path` is the new/current path after rename.  Allow optional
+    ;; "orig -> " prefix before the target path.
     (while (re-search-forward
             (concat "^[ \t]*\\(modified\\|added\\|deleted\\|renamed\\|new file\\|copied\\)"
-                    "[ \t]+" (regexp-quote path) "$")
+                    "[ \t]+\\(?:.* -> \\)?" (regexp-quote path) "$")
             nil t)
       (let ((start (match-beginning 0)))
         (unless (code-review--viewed-overlay-for path)
