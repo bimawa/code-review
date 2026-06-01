@@ -782,7 +782,7 @@ Optionally ask for the FALLBACK? query."
                    :callback callback)
       (error
        (message "[code-review] SEND-REVIEW error: %S %S" (car err) (cdr err))
-       nil)))))
+       nil))))
 
 (cl-defmethod code-review-get-assignable-users ((github code-review-github-repo))
   "Get a list of assignable users for current PR in GITHUB."
