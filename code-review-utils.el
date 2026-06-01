@@ -201,7 +201,8 @@ using COMMENTS."
                                :path .path
                                :createdAt .createdAt
                                :updatedAt .updatedAt
-                               :line-type .line-type))
+                               :line-type .line-type
+                               :send? nil))
                              (t
                               (code-review-code-comment-section
                                :state state
