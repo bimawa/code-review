@@ -760,16 +760,17 @@ Optionally ask for the FALLBACK? query."
                               `((body . ,(oref review feedback))))
                     payload-base))
          (payload (if (oref review local-comments)
-                      (append payload
-                              `((comments . ,(--sort
-                                            (< (a-get it 'position)
-                                               (a-get other 'position))
-                                            (-map
-                                             (lambda (c)
-                                               `((path . ,(oref c path))
-                                                 (position . ,(oref c position))
-                                                 (body . ,(oref c body))))
-                                             (oref review local-comments))))))
+                      (let ((clist (-sort
+                                   (< (a-get it 'position)
+                                      (a-get other 'position))
+                                   (-map
+                                    (lambda (c)
+                                      `((path . ,(oref c path))
+                                        (position . ,(oref c position))
+                                        (body . ,(oref c body))))
+                                    (oref review local-comments)))))
+                        (append payload
+                                `((comments . [,@clist]))))
                     payload)))
     (condition-case err
         (ghub-post (format "/repos/%s/%s/pulls/%s/reviews"
