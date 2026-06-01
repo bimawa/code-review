@@ -66,16 +66,25 @@
                        (a-get (-third-item .error) 'errors)
                        " AND "))
               (msg (string-trim (a-get (-third-item .error) 'message))))
-          (message "Errors: %S" (if (string-empty-p errors)
+          (message "[code-review] API 422: %S" (if (string-empty-p errors)
                                     msg
                                   (string-join (list msg errors) ". ")))))
        ((= status 404)
-        (message "Provided URL Not Found"))
+        (message "[code-review] API 404: resource not found"))
        ((= status 401)
-        (message "Bad credentials. Documentation to how to setup credentials
-https://github.com/wandersoncferreira/code-review#configuration"))
+        (message "[code-review] API 401: Bad credentials. See https://github.com/wandersoncferreira/code-review#configuration"))
        (t
-        (message "Unknown error talking to Github: %s" m))))))
+        (message "[code-review] API error: %s" (prin1-to-string m)))))))
+
+(defmacro code-review--with-visible-errors (&rest body)
+  "Execute BODY catching errors and showing them in minibuffer."
+  (declare (indent 0))
+  `(condition-case err
+       (progn ,@body)
+     (error
+      (message "[code-review] ERROR: %s %s" (car err) (cdr err))
+      (backtrace)))
+  )
 
 (cl-defmethod code-review-pullreq-diff ((github code-review-github-repo) callback)
   "Get PR diff from GITHUB, run CALLBACK after answer."
@@ -706,18 +715,22 @@ Optionally ask for the FALLBACK? query."
         (-map
          (lambda (reply)
            (lambda ()
-             (ghub-post (format "/repos/%s/%s/pulls/%s/comments/%s/replies"
-                                (oref pr owner)
-                                (oref pr repo)
-                                (oref pr number)
-                                (oref reply reply-to-id))
-                        nil
-                        :payload (a-alist 'body (oref reply body))
-                        :headers code-review-github-diffheader
-                        :auth (code-review-utils--get-auth-marker (oref pr owner) (oref pr repo))
-                        :host code-review-github-host
-                        :callback (lambda (&rest _))
-                        :errorback #'code-review-github-errback)))
+             (condition-case err
+                 (ghub-post (format "/repos/%s/%s/pulls/%s/comments/%s/replies"
+                                    (oref pr owner)
+                                    (oref pr repo)
+                                    (oref pr number)
+                                    (oref reply reply-to-id))
+                            nil
+                            :payload (a-alist 'body (oref reply body))
+                            :headers code-review-github-diffheader
+                            :auth (code-review-utils--get-auth-marker (oref pr owner) (oref pr repo))
+                            :host code-review-github-host
+                            :callback (lambda (&rest _))
+                            :errorback #'code-review-github-errback)
+               (error
+                (message "[code-review] SEND-REPLIES error: %S %S" (car err) (cdr err))
+                nil))))
          (oref replies replies)))
 
       (deferred:nextc it
@@ -726,7 +739,7 @@ Optionally ask for the FALLBACK? query."
 
       (deferred:error it
         (lambda (err)
-          (message "Got an error from the Github Reply API %S!" err))))))
+          (message "[code-review] SEND-REPLIES deferred error: %S" err))))))
 
 (defclass code-review-submit-github-review ()
   ((state :initform nil)
@@ -756,16 +769,20 @@ Optionally ask for the FALLBACK? query."
                                                        (body . ,(oref c body))))
                                                    (oref review local-comments))))
                     payload)))
-    (ghub-post (format "/repos/%s/%s/pulls/%s/reviews"
-                       (oref pr owner)
-                       (oref pr repo)
-                       (oref pr number))
-               nil
-               :auth (code-review-utils--get-auth-marker (oref pr owner) (oref pr repo))
-               :payload payload
-               :host code-review-github-host
-               :errorback #'code-review-github-errback
-               :callback callback)))
+    (condition-case err
+        (ghub-post (format "/repos/%s/%s/pulls/%s/reviews"
+                           (oref pr owner)
+                           (oref pr repo)
+                           (oref pr number))
+                   nil
+                   :auth (code-review-utils--get-auth-marker (oref pr owner) (oref pr repo))
+                   :payload payload
+                   :host code-review-github-host
+                   :errorback #'code-review-github-errback
+                   :callback callback)
+      (error
+       (message "[code-review] SEND-REVIEW error: %S %S" (car err) (cdr err))
+       nil)))))
 
 (cl-defmethod code-review-get-assignable-users ((github code-review-github-repo))
   "Get a list of assignable users for current PR in GITHUB."
@@ -901,20 +918,24 @@ Return the blob URL if BLOB? is provided."
 
 (cl-defmethod code-review-new-code-comment ((github code-review-github-repo) local-comment callback)
   "Creare a new code comment in GITHUB from a LOCAL-COMMENT and call CALLBACK."
-  (ghub-post (format "/repos/%s/%s/pulls/%s/comments"
-                     (oref github owner)
-                     (oref github repo)
-                     (oref github number))
-             nil
-             :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
-             :headers '(("Accept" . "application/vnd.github.v3+json"))
-             :host code-review-github-host
-             :payload (a-alist 'path (oref local-comment path)
-                               'position (oref local-comment position)
-                               'body (oref local-comment msg)
-                               'commit_id (oref github sha))
-             :callback callback
-             :errorback #'code-review-github-errback))
+  (condition-case err
+      (ghub-post (format "/repos/%s/%s/pulls/%s/comments"
+                         (oref github owner)
+                         (oref github repo)
+                         (oref github number))
+                 nil
+                 :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
+                 :headers '(("Accept" . "application/vnd.github.v3+json"))
+                 :host code-review-github-host
+                 :payload (a-alist 'path (oref local-comment path)
+                                   'position (oref local-comment position)
+                                   'body (oref local-comment msg)
+                                   'commit_id (oref github sha))
+                 :callback callback
+                 :errorback #'code-review-github-errback)
+    (error
+     (message "[code-review] NEW-CODE-COMMENT error: %S %S" (car err) (cdr err))
+     nil)))
 
 ;;; File viewed state (markFileAsViewed / unmarkFileAsViewed)
 
@@ -926,13 +947,37 @@ Return the blob URL if BLOB? is provided."
     pullRequest { id }
   }
 }"))
-    (ghub-graphql query
-                  `((input . ((pullRequestId . ,pr-id)
-                              (path . ,path))))
-                  :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
-                  :host code-review-github-graphql-host
-                  :callback (lambda (&rest _) (funcall callback))
-                  :errorback #'code-review-github-errback)))
+    (condition-case err
+        (ghub-graphql query
+                      `((input . ((pullRequestId . ,pr-id)
+                                  (path . ,path))))
+                      :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
+                      :host code-review-github-graphql-host
+                      :callback (lambda (&rest _) (funcall callback))
+                      :errorback #'code-review-github-errback)
+      (error
+       (message "[code-review] MARK-FILE-VIEWED error: %S %S" (car err) (cdr err))
+       nil))))
+
+(cl-defmethod code-review-unmark-file-viewed ((github code-review-github-repo) path callback)
+  "Unmark file PATH as viewed for GITHUB PR and call CALLBACK."
+  (let ((pr-id (a-get (oref github raw-infos) 'id))
+        (query "mutation($input: UnmarkFileAsViewedInput!) {
+  unmarkFileAsViewed(input: $input) {
+    pullRequest { id }
+  }
+}"))
+    (condition-case err
+        (ghub-graphql query
+                      `((input . ((pullRequestId . ,pr-id)
+                                  (path . ,path))))
+                      :auth (code-review-utils--get-auth-marker (oref github owner) (oref github repo))
+                      :host code-review-github-graphql-host
+                      :callback (lambda (&rest _) (funcall callback))
+                      :errorback #'code-review-github-errback)
+      (error
+       (message "[code-review] UNMARK-FILE-VIEWED error: %S %S" (car err) (cdr err))
+       nil))))
 
 (cl-defmethod code-review-unmark-file-viewed ((github code-review-github-repo) path callback)
   "Unmark file PATH as viewed for GITHUB PR and call CALLBACK."
