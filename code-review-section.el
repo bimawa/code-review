@@ -913,7 +913,13 @@ INDENT count of spaces are added at the start of every line."
                :type number)
    (line       :initarg :line
                :initform nil
-               :documentation "End line for multi-line comments (range)")
+               :documentation "Start line for multi-line comments (file line)")
+   (end-line   :initarg :end-line
+               :initform nil
+               :documentation "End file line for multi-line range")
+   (end-line   :initarg :end-line
+               :initform nil
+               :documentation "End file line for multi-line range")
    (reactions  :initarg :reactions
                :type (or null
                          (satisfies

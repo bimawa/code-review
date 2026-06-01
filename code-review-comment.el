@@ -256,6 +256,7 @@ Optionally define a MSG."
                                :path (a-get obj 'path)
                                :position diff-pos
                                :line file-line
+                               :end-line file-end
                                :line-type line-type
                                :send? code-review-comment-send?)))
           (setq code-review-comment-uncommitted local-comment)
@@ -321,6 +322,7 @@ Inform if a SUGGESTION-CODE? is being proposed."
                                           (path . ,(oref obj path))
                                           (position . ,(oref obj position))
                                           (line . ,(oref obj line))
+                                          (end-line . ,(oref obj end-line))
                                           (databaseId)
                                           (diffHunk)
                                           (outdated)

@@ -55,13 +55,15 @@
 ;;;
 
 (defclass code-review-submit-local-coment ()
-  ((path     :initarg :path)
-   (position :initarg :position)
-   (line     :initarg :line
-             :initform nil)
-   (body     :initarg :body)
+  ((path      :initarg :path)
+   (position  :initarg :position)
+   (line      :initarg :line
+              :initform nil)
+   (end-line  :initarg :end-line
+              :initform nil)
+   (body      :initarg :body)
    (internal-id :initarg :internal-id)
-   (line-type :initarg :line-type)))
+   (line-type  :initarg :line-type)))
 
 (defclass code-review-submit-review ()
   ((state :initform nil)
@@ -161,6 +163,7 @@ If you want only to submit replies, use ONLY-REPLY? as non-nil."
                             :path (oref value path)
                             :position (oref value position)
                             :line (oref value line)
+                            :end-line (oref value end-line)
                             :body (oref value msg)
                             :internal-id (oref value internalId)
                             :line-type (oref value line-type))

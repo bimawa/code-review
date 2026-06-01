@@ -765,11 +765,13 @@ Optionally ask for the FALLBACK? query."
                                     (-map
                                      (lambda (c)
                                        (let ((start (oref c line))
-                                             (end   (oref c line)))
-                                         ;; Use file-line for both; GitHub needs line
+                                             (end   (oref c end-line)))
                                          `((path . ,(oref c path))
                                            (body . ,(oref c body))
-                                           (line . ,start))))
+                                           ,@(if end
+                                                 `((start_line . ,start)
+                                                   (line . ,end))
+                                               `((line . ,start))))))
                                      (oref review local-comments)))
                                    (lambda (a b)
                                      (< (a-get a 'line)
@@ -935,10 +937,14 @@ Return the blob URL if BLOB? is provided."
                  :auth 'code-review
                  :headers '(("Accept" . "application/vnd.github.v3+json"))
                  :host code-review-github-host
-                 :payload `((path . ,(oref local-comment path))
-                            (body . ,(oref local-comment msg))
-                            (commit_id . ,(oref github sha))
-                            (line . ,(oref local-comment line)))
+                 :payload (let ((start (oref local-comment line))
+                                (end   (oref local-comment end-line)))
+                            `((path . ,(oref local-comment path))
+                              (body . ,(oref local-comment msg))
+                              (commit_id . ,(oref github sha))
+                              ,@(if end
+                                    `((start_line . ,start) (line . ,end))
+                                  `((line . ,start)))))
                  :callback callback
                  :errorback #'code-review-github-errback)
     (error
