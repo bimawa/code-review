@@ -216,7 +216,7 @@ Optionally define a MSG."
                               (save-excursion
                                 (goto-char region-start)
                                 (string-join
-                                 (-map (lambda (l) (substring l (if (string-prefix-p " " l) 1 0)))
+                                 (-map (lambda (l) (substring l 1))
                                        (split-string
                                         (buffer-substring-no-properties
                                          (save-excursion
